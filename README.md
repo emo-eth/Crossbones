@@ -32,4 +32,5 @@ The seller submits a bundle of transactions to a block builder on the condition 
 
 ## Caveats:
 - The seller must be able to submit a bundle of transactions to a block builder on the condition that they all must succeed.
+- The block builder must honor this bundle and its conditions.
 - The network must process all transactions as part of the same block. On some networks, each transaction is its own block.
