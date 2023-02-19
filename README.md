@@ -19,7 +19,7 @@ struct Claim {
 }
 ```
 
-To somewhat mitigate signature phishing, the expiredTimestamp must be at most 30 minutes in the future.
+To somewhat mitigate signature collection, the expiredTimestamp must be at most 30 minutes in the future.
 
 ## Stage 2:
 The seller submits a bundle of transactions to a block builder on the condition that they all must succeed.
