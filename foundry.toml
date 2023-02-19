@@ -5,7 +5,8 @@ libs = ['lib']
 bytecode_hash = 'none'
 remappings = [
     'ds-test/=lib/forge-std/lib/ds-test/src/',
-    'forge-std/=lib/forge-std/src/'
+    'forge-std/=lib/forge-std/src/',
+    'openzeppelin-contracts/=lib/openzeppelin-contracts/contracts/'
 ]
 
 [fmt]
