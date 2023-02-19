@@ -109,6 +109,9 @@ contract Crossbones {
         external
         payable
     {
+        if (msg.value == 0) {
+            revert InvalidDeposit();
+        }
         Deposit storage _deposit = deposits[msg.sender][tokenAddress][tokenId];
         Deposit memory userDeposit = _deposit;
         if (userDeposit.paymentBalance > 0) {
