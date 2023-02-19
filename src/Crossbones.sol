@@ -8,12 +8,11 @@ import { Claim, Deposit, ClaimCommitment } from "./lib/Structs.sol";
  * @title  Crossbones
  * @author emo.eth
  * @notice Crossbones is a proof-of-concept payment escrow smart contract for
- *         OTC sales of NFTs, where marketplace smart contracts may not be able
- *         to facilitate the sale. It is designed to be used with a private
- * relayer
- *         that supports atomic bundles of transactions, ie, if any transaction
- *         in the bundle fails, all transactions in the bundle should be
- * reverted.
+ * OTC sales of NFTs, where marketplace smart contracts may not be able
+ * to facilitate the sale. It is designed to be used with a private
+ * relayer that supports atomic bundles of transactions, ie, if any
+ * transaction in the bundle fails, all transactions in the bundle
+ * should be reverted.
  *
  * A sale consists of four transactions made in two stages:
  *
