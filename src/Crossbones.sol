@@ -4,6 +4,67 @@ pragma solidity ^0.8.17;
 import { IERC721 } from "openzeppelin-contracts/interfaces/IERC721.sol";
 import { Claim, Deposit, ClaimCommitment } from "./lib/Structs.sol";
 
+/**
+ * @title  Crossbones
+ * @author emo.eth
+ * @notice Crossbones is a proof-of-concept payment escrow smart contract for
+ *         OTC sales of NFTs, where marketplace smart contracts may not be able
+ *         to facilitate the sale. It is designed to be used with a private
+ * relayer
+ *         that supports atomic bundles of transactions, ie, if any transaction
+ *         in the bundle fails, all transactions in the bundle should be
+ * reverted.
+ *
+ * A sale consists of four transactions made in two stages:
+ *
+ * Stage 1:
+ *
+ * The buyer submits a deposit to pay for a specific token (address + ID) as
+ * well as a recipient address of the token. The deposit is held in escrow by
+ * the contract and may be withdrawn at any time.
+ *
+ * To prevent front-running of withdrawals, the buyer must provide the seller
+ * with a signature of the following struct:
+ *
+ * struct Claim {
+ *     address tokenAddress;
+ *     uint256 tokenId;
+ *     uint256 expiredTimestamp;
+ * }
+ *
+ * To somewhat mitigate signature collection, the expiredTimestamp must be at
+ * most 30 minutes in the future.
+ *
+ *
+ * Stage 2:
+ *
+ * The seller submits an atomic bundle of transactions to a block builder on the
+ * condition that they all must succeed.
+ *
+ * 1. The seller calls `commitClaim` to commit to selling a specific token
+ *    (address + ID) to a specific buyer for a specific amount.
+ *     - The seller is verified to be the owner of the token. The seller, the
+ *       buyer, and the amount are stored along with the current block number.
+ *
+ * 2. The seller transfers the token to the specified recipient according to the
+ *    buyer's deposit.
+ *
+ * 3. The seller calls `claimDeposit` with the Claim struct, buyer address, and
+ *    buyer-provided signature.
+ *     - The signature and commitments are validated, ownership of the token is
+ *       verified to be the buyer-specified recipient, and the deposit entry is
+ *       cleared with the amount forwarded to the seller specified in the
+ *       commitment.
+ *
+ * Caveats:
+ *
+ * - The seller must be able to submit a bundle of transactions to a block
+ * builder on the condition that they all must succeed.
+ *
+ * - The network must process all transactions as part of the same block. On
+ *   some networks, each transaction is its own block.
+ *
+ */
 contract Crossbones {
     error InvalidClaim();
     error InvalidDeposit();
@@ -12,6 +73,8 @@ contract Crossbones {
     error NotTokenOwner();
     error InvalidCommitment();
     error InvalidBuyer();
+    error InvalidSignature();
+    error ExpiredClaim();
 
     string public constant EIP712_DOMAIN_TYPE =
         "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)";
@@ -19,7 +82,8 @@ contract Crossbones {
         keccak256(bytes(EIP712_DOMAIN_TYPE));
     string public constant EIP712_CLAIM_TYPE =
         "Claim(address tokenAddress,uint256 tokenId,uint256 expiredTimestamp)";
-    bytes32 constant EIP712_CLAIM_TYPEHASH = keccak256(bytes(EIP712_CLAIM_TYPE));
+    bytes32 public constant EIP712_CLAIM_TYPEHASH =
+        keccak256(bytes(EIP712_CLAIM_TYPE));
 
     bytes32 public immutable DOMAIN_SEPARATOR;
     string public constant NAME = "Crossbones";
@@ -174,7 +238,7 @@ contract Crossbones {
             expiredTimestamp < block.timestamp
                 || (expiredTimestamp - block.timestamp) > SIGNATURE_MAX_DURATION
         ) {
-            revert InvalidClaim();
+            revert ExpiredClaim();
         }
 
         // validate commitment:
@@ -195,13 +259,11 @@ contract Crossbones {
 
         uint256 balance = buyerDeposit.paymentBalance;
         // empty deposit means it has been claimed or withdrawn
-        if (balance == 0) {
-            revert InvalidDeposit();
-        } else if (balance != commitment.depositAmount) {
-            // deposit amount doesn't match the commitment amount, should fail
+        // deposit amount doesn't match the commitment amount, should fail
+
+        if (balance == 0 || balance != commitment.depositAmount) {
             revert InvalidDeposit();
         }
-
         // validate that recipient now owns the token
         if (
             IERC721(tokenAddress).ownerOf(tokenId)
@@ -211,6 +273,8 @@ contract Crossbones {
         }
         // clear the deposit
         delete deposits[buyer][claim.tokenAddress][claim.tokenId];
+        // clear the commitment
+        delete commitments[tokenAddress][tokenId];
 
         // pay the seller
         (bool succ, bytes memory reason) =
@@ -260,12 +324,12 @@ contract Crossbones {
         // validate the signature
         address signer = ecrecover(digest, v, r, s);
         if (signer != buyer) {
-            revert InvalidClaim();
+            revert InvalidSignature();
         }
 
         // validate that the signature has not been used before; mark it as used
         if (usedSignatures[digest]) {
-            revert InvalidClaim();
+            revert InvalidSignature();
         }
         usedSignatures[digest] = true;
     }

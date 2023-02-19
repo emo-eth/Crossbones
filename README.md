@@ -2,6 +2,8 @@
 
 Proof-of-concept transaction-bundle-assisted OTC NFT trades. Purchase funds are escrowed by a smart contract, but the token transfer is performed by the seller as part of a bundle of transactions that also validate and withdraw the funds. 
 
+This would allow for OTC sales of tokens that explicitly forbid all but direct transfers except for those by validated EOAs, where the mutually trusted party is the block builder and their private mempool.
+
 A sale consists of four transactions made in two stages:
 
 ## Stage 1:
