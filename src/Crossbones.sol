@@ -23,8 +23,8 @@ import { Claim, Deposit, ClaimCommitment } from "./lib/Structs.sol";
  * well as a recipient address of the token. The deposit is held in escrow by
  * the contract and may be withdrawn at any time.
  *
- * To prevent front-running of withdrawals, the buyer must provide the seller
- * with a signature of the following struct:
+ * To prevent front-running of deposit withdrawals, the buyer must provide the
+ * seller with a signature of the following struct:
  *
  * struct Claim {
  *     address tokenAddress;
@@ -118,7 +118,8 @@ contract Crossbones {
     /**
      * @notice A seller must commit to claiming a buy order for an NFT that they
      *         own within the same block it is claimed. This ensures that a buy
-     *         claim cannot be front-run by the token receiver.
+     *         claim cannot be front-run by the token receiver, if a builder
+     *         were to allow insertion of transactions within the bundle
      *
      * @param tokenAddress nft smart contract of token being sold
      * @param tokenId nft token id to be sold and to verify that the caller owns
@@ -150,7 +151,8 @@ contract Crossbones {
         }
 
         // validate that the caller owns the token, so a bundled claim cannot be
-        // front-run
+        // front-run, if the builder were to allow insertion of other
+        // transactions within the bundle
         if (IERC721(tokenAddress).ownerOf(tokenId) != msg.sender) {
             revert NotTokenOwner();
         }
